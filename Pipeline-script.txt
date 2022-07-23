@@ -1,15 +1,17 @@
-def img
+def doc_img
 pipeline {
     environment {
-        registry = "kss7/python-jenkins" //To push an image to Docker Hub, you must first name your local image using your Docker Hub username and the repository name that you created through Docker Hub on the web.
-        registryCredential = 'docker-hub-login'
+        registry = "codctech/flask-ui-demo" //To push an image to Docker Hub, you must first name your local image using your Docker Hub username and the repository name that you created through Docker Hub on the web.
+        registryCredential = 'codec-docker-hub-login'
         dockerImage = ''
     }
+    
     agent any
+    
     stages {
-        stage('checkout') {
+        stage('Git Checkout') {
             steps {
-                git 'https://github.com/codec/DemoFlaskUI.git'
+                git 'https://github.com/thecodec/DemoFlaskUI.git'
             }
         }
 
@@ -21,23 +23,20 @@ pipeline {
             }
         }
 
-
         stage('Build Image') {
             steps {
                 script {
-                    img = registry + ":${env.BUILD_ID}"
-                    println ("${img}")
-                    dockerImage = docker.build("${img}")
+                    doc_img = registry + ":${env.BUILD_ID}"
+                    println ("${doc_img}")
+                    dockerImage = docker.build("${doc_img}")
                 }
             }
         }
 
-
-
         stage('Test - Run Docker Container on Jenkins node') {
            steps {
 
-                sh label: '', script: "docker run -d --name ${JOB_NAME} -p 5000:5000 ${img}"
+                sh label: '', script: "docker run -d --name ${JOB_NAME} -p 5000:5000 ${doc_img}"
           }
         }
 
@@ -57,15 +56,15 @@ pipeline {
                     def stopcontainer = "docker stop ${JOB_NAME}"
                     def delcontName = "docker rm ${JOB_NAME}"
                     def delimages = 'docker image prune -a --force'
-                    def drun = "docker run -d --name ${JOB_NAME} -p 5000:5000 ${img}"
+                    def drun = "docker run -d --name ${JOB_NAME} -p 5000:5000 ${doc_img}"
                     println "${drun}"
                     sshagent(['docker-test']) {
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no docker@192.168.1.16 ${stopcontainer} "
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no docker@192.168.1.16 ${delcontName}"
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no docker@192.168.1.16 ${delimages}"
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no deployserver@deploymentserver ${stopcontainer} "
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no deployserver@deploymentserver ${delcontName}"
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no deployserver@deploymentserver ${delimages}"
 
                         // some block
-                        sh "ssh -o StrictHostKeyChecking=no docker@192.168.1.16 ${drun}"
+                        sh "ssh -o StrictHostKeyChecking=no deployserver@deploymentserver ${drun}"
                     }
                 }
             }
